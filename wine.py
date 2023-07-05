@@ -1,10 +1,13 @@
 import pandas as pd
 
 import numpy as np
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import accuracy_score
+import tensorflow as tf
+import matplotlib.pyplot as plt
 
 # Specify the CSV file path
 csv_file = 'wine_combined_cleaned.csv'
@@ -95,3 +98,109 @@ ensemble_predictions = ensemble_predictions.reshape(-1)
 # Evaluating the ensemble model
 accuracy = np.mean(ensemble_predictions == y_test)
 print(f"Weighted Ensemble Accuracy: {accuracy}")
+
+# Create individual classifiers
+decision_tree = DecisionTreeClassifier()
+random_forest = RandomForestClassifier(n_estimators=100, random_state=42)
+
+# Create the VotingClassifier with majority voting
+voting_classifier = VotingClassifier(
+    estimators=[('dt', decision_tree), ('rf', random_forest)],
+    voting='hard'
+)
+
+# Fit the VotingClassifier on the training data
+voting_classifier.fit(X_train, y_train)
+
+# Make predictions on the test set using the VotingClassifier
+ensemble_predictions = voting_classifier.predict(X_test)
+
+# Evaluate the ensemble model
+accuracy = accuracy_score(y_test, ensemble_predictions)
+print(f"Voting Ensemble Accuracy: {accuracy}")
+
+''' Deep Learning '''
+
+# # Encode the target variable
+# encoder = LabelEncoder()
+# y = encoder.fit_transform(y)
+
+# # Splitting the data into training and testing sets with stratified sampling
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
+
+# # Define the model architecture
+# model = tf.keras.models.Sequential([
+#     tf.keras.layers.Dense(64, activation='relu', input_shape=(X.shape[1],)),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(128, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(256, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(512, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(512, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(256, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(128, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(64, activation='relu'),
+#     tf.keras.layers.Dropout(0.5),
+#     tf.keras.layers.Dense(1, activation='sigmoid')
+# ])
+
+# # Compile the model
+# model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# # Train the model
+# model.fit(X_train, y_train, epochs=10, batch_size=64, verbose=1)
+
+# # Evaluate the model
+# _, accuracy = model.evaluate(X_test, y_test, verbose=0)
+# print(f"Neural Net Accuracy: {accuracy}")
+
+# Create the VotingClassifier with majority voting
+voting_classifier = VotingClassifier(
+    estimators=[('dt', decision_tree), ('rf', random_forest)],
+    voting='hard'
+)
+
+# Define the parameter grid for grid search
+param_grid = {
+    'dt__max_depth': [2, 4, 6, 8, 10],
+    'dt__min_samples_leaf': [1, 2, 3, 4, 5]
+}
+
+# Perform grid search
+grid_search = GridSearchCV(voting_classifier, param_grid, cv=5)
+grid_search.fit(X_train, y_train)
+
+# Get the best estimator from the grid search
+best_estimator = grid_search.best_estimator_
+
+# Get the grid search results
+results = grid_search.cv_results_
+depths = param_grid['dt__max_depth']
+leaf_sizes = param_grid['dt__min_samples_leaf']
+mean_scores = results['mean_test_score']
+
+# Plot the accuracy based on different combinations of depth and leaf size
+fig, ax = plt.subplots()
+scores = np.array(mean_scores).reshape(len(depths), len(leaf_sizes))
+
+for i, depth in enumerate(depths):
+    ax.plot(leaf_sizes, scores[i], marker='o', label=f"Depth {depth}")
+
+ax.set_xlabel('Min Samples Leaf')
+ax.set_ylabel('Accuracy')
+ax.legend(title='Max Depth')
+ax.set_title('Accuracy vs. Depth and Leaf Size')
+plt.grid(True)
+plt.show()
+
+# Make predictions on the test set using the best estimator
+ensemble_predictions = best_estimator.predict(X_test)
+
+# Evaluate the ensemble model
+accuracy = accuracy_score(y_test, ensemble_predictions)
+print(f"Accuracy: {accuracy}")
