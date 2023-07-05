@@ -9,4 +9,4 @@ data = pd.read_csv(csv_file)
 # Print the DataFrame
 # print(data)
 
-data.head()
+print(data.head())
